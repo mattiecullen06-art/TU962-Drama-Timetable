@@ -44,6 +44,7 @@ function kustomData(input) {
 function irishDate(s){return validDate(s)?s.split('-').reverse().join('/'):'';}
 function parseIrishDate(s){const match=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(!match)return null;const iso=`${match[3]}-${match[2]}-${match[1]}`;return validDate(iso)?iso:null;}
 function prettyDate(s){return date(s).toLocaleDateString('en-IE',{weekday:'long',timeZone:'UTC'})+', '+irishDate(s);}
+function formatDateInput(s){const digits=s.replace(/\D/g,'').slice(0,8);return [digits.slice(0,2),digits.slice(2,4),digits.slice(4,8)].filter(Boolean).join('/');}
 // This adapter is bundled after the same timetable engine used by the web app.
 const fm=FileManager.local(), saved=fm.joinPath(fm.documentsDirectory(),'TU962-timetable.json');
 const wallpaper=fm.joinPath(fm.documentsDirectory(),'TU962-wallpaper.png');

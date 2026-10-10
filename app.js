@@ -1,9 +1,10 @@
 import {kustomData,backgrounds,palette,lightBackground} from './widget-data.mjs?v=4';
-import {irishDate,parseIrishDate,prettyDate} from './date-format.mjs';
+import {irishDate,parseIrishDate,prettyDate,formatDateInput} from './date-format.mjs';
 import {defaults,date,iso,addDays,monday,onDate,validEntry,validate,removeOccurrence} from './engine.mjs';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Dublin',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const pretty=prettyDate;
+document.querySelectorAll('input[placeholder="DD/MM/YYYY"]').forEach(field=>{field.oninput=()=>{field.value=formatDateInput(field.value);};});
 let seed=[];try{seed=await fetch('./seed.json').then(r=>{if(!r.ok)throw Error('Timetable could not load');return r.json()});}catch{$('status').textContent='The published timetable could not load. Your saved classes will still open; reconnect to load the default timetable.';}
 let state={schemaVersion:2,course:'TU962',entries:seed,appearance:{...defaults}},undo=null,selected=today(),editing=null,occurrence=null;
 try{const stored=localStorage.getItem('tu962-v2');if(stored)state=validate(JSON.parse(stored));}catch{ $('status').textContent='Saved data could not be read. Export a backup before clearing your browser storage.';}
