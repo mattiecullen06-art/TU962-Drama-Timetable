@@ -14,8 +14,9 @@ function validate(data){if(data?.schemaVersion!==2||data.course!=='TU962'||!Arra
 function removeOccurrence(entries,id,s){return entries.flatMap(e=>e.id!==id?[e]:e.recurrence==='ONE_OFF'?[]:[{...e,excludedDates:[...new Set([...(e.excludedDates||[]),s])]}]);}
 
 const palette={Blue:'#0a4fb5',Mint:'#43e6a3',Sky:'#49d3ff',Purple:'#ae79ff',Amber:'#ffc453',Rose:'#ff6680',White:'#ffffff',Black:'#000000',Grey:'#808080'};
-const backgrounds={Light:'#f7f7fa',Midnight:'#0a142e',AMOLED:'#000000',Glass:'#304769',Nord:'#2e3340',Sunset:'#3b1f2b'};
+const backgrounds={Light:'#f7f7fa',White:'#ffffff',Cream:'#fff3d6',Blush:'#ffe4ec',Lavender:'#ede4ff','Pale blue':'#dceeff',Sage:'#e2efde',Peach:'#ffe3ce',Slate:'#475569',Ocean:'#123c57',Forest:'#153d30',Burgundy:'#581e38',Midnight:'#0a142e',AMOLED:'#000000',Glass:'#304769',Nord:'#2e3340',Sunset:'#3b1f2b',Transparent:'transparent'};
 const resolveColor=(s,f)=>palette[s]||(/^#[0-9a-f]{6}$/i.test(s)?s:f);
+function lightBackground(name){if(name==='Transparent')return true;const hex=backgrounds[name]||resolveColor(name,'#f7f7fa');const rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]>.55;}
 function widgetDay(state,day,time='00:00') {
   const a=state.appearance;
   let d=day, entries=onDate(state.entries,d,a);
@@ -37,18 +38,23 @@ function kustomData(input) {
     const es=onDate(state.entries,d,a),visible=es.slice(0,a.rows);
     days[d]=visible.map(e=>`${e.start}–${e.end}  ${e.module}${a.showType||a.showRoom?'\n'+[a.showType?e.type:'',a.showRoom?e.location:''].filter(Boolean).join(' · '):''}`).join(a.compact?'\n':'\n\n')+(es.length>a.rows?`\n+${es.length-a.rows} more`:'')||'No saved classes';
   }
-  const light=a.background==='Light';
+  const light=lightBackground(a.background);
   return {schemaVersion:1,course:'TU962',timezone:'Europe/Dublin',start,end,days,appearance:{background:backgrounds[a.background]||resolveColor(a.background,'#f7f7fa'),text:resolveColor(a.text,light?'#172334':'#ffffff'),accent:resolveColor(a.accent,'#0a4fb5'),font:a.font,scale:a.scale,corners:a.corners},mode:'today'};
 }
+function irishDate(s){return validDate(s)?s.split('-').reverse().join('/'):'';}
+function parseIrishDate(s){const match=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);if(!match)return null;const iso=`${match[3]}-${match[2]}-${match[1]}`;return validDate(iso)?iso:null;}
+function prettyDate(s){return date(s).toLocaleDateString('en-IE',{weekday:'long',timeZone:'UTC'})+', '+irishDate(s);}
 // This adapter is bundled after the same timetable engine used by the web app.
 const fm=FileManager.local(), saved=fm.joinPath(fm.documentsDirectory(),'TU962-timetable.json');
+const wallpaper=fm.joinPath(fm.documentsDirectory(),'TU962-wallpaper.png');
 let state;
 if(config.runsInApp) {
   const prompt=new Alert();prompt.title='TU962 timetable';
   prompt.message='Import the timetable & appearance file exported from the web app. Later changes need another import.';
-  prompt.addAction('Import timetable file');prompt.addAction('Preview saved timetable');prompt.addCancelAction('Cancel');
+  prompt.addAction('Import timetable file');prompt.addAction('Preview saved timetable');prompt.addAction('Choose wallpaper crop');prompt.addCancelAction('Cancel');
   const action=await prompt.presentSheet();
   if(action===-1){Script.complete();return;}
+  if(action===2){try{fm.writeImage(wallpaper,await Photos.fromLibrary());}catch{Script.complete();return;}}
   if(action===0) {
     try {
       const path=await DocumentPicker.openFile();
@@ -66,8 +72,9 @@ try {
   const a=state.appearance, now=new Date();
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Dublin',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
   const time=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Dublin',hour:'2-digit',minute:'2-digit',hour12:false}).format(now);
-  const result=widgetDay(state,day,time), light=a.background==='Light';
-  w.backgroundColor=new Color(backgrounds[a.background]||resolveColor(a.background,'#f7f7fa'));
+  const result=widgetDay(state,day,time), light=lightBackground(a.background);
+  if(a.background==='Transparent'&&fm.fileExists(wallpaper))w.backgroundImage=fm.readImage(wallpaper);
+  else w.backgroundColor=new Color(a.background==='Transparent'?'#f7f7fa':backgrounds[a.background]||resolveColor(a.background,'#f7f7fa'));
   const text=resolveColor(a.text,light?'#172334':'#ffffff'), secondary=resolveColor(a.secondary,light?'#526075':'#d0daed'), accent=resolveColor(a.accent,'#0a4fb5');
   function font(size,bold=false) {
     size*=a.scale;
@@ -77,7 +84,7 @@ try {
     if(a.font==='8-Bit Arcade'||a.font==='Digital Clock')return Font.regularMonospacedSystemFont(size);
     return names[a.font]?new Font(names[a.font],size):bold?Font.boldSystemFont(size):Font.systemFont(size);
   }
-  const heading=w.addText(date(result.date).toLocaleDateString('en-IE',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'}));heading.font=font(14,true);heading.textColor=new Color(text);heading.lineLimit=1;
+  const heading=w.addText(prettyDate(result.date));heading.font=font(14,true);heading.textColor=new Color(text);heading.lineLimit=1;
   const subtitle=w.addText('TU962 · Drama');subtitle.font=font(10);subtitle.textColor=new Color(secondary);
   w.addSpacer(a.compact?6:10);
   const family=config.widgetFamily||'medium';
@@ -98,6 +105,7 @@ try {
   }
   if(!es.length){const empty=w.addText('No saved classes');empty.font=font(12);empty.textColor=new Color(secondary);}
   if(es.length>count){const more=w.addText('+'+(es.length-count)+' more');more.font=font(10);more.textColor=new Color(secondary);}
+  if(a.background==='Transparent'&&!fm.fileExists(wallpaper)){const note=w.addText('Choose wallpaper crop in TU962');note.font=font(9);note.textColor=new Color(secondary);}
   w.addSpacer();
   // Refresh requests are advisory: iOS controls when widgets actually update.
   w.refreshAfterDate=new Date(Date.now()+15*60*1000);
@@ -108,3 +116,4 @@ if(config.runsInWidget)Script.setWidget(w);else await w.presentMedium();
 Script.complete();
 
 })().catch(async error=>{const a=new Alert();a.title="TU962 error";a.message=String(error);a.addAction("OK");await a.presentAlert();});
+

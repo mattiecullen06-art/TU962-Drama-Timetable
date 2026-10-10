@@ -25,17 +25,25 @@ test('next classes skip ended sessions and weekends, do not invent extra classes
 const script=readFileSync(new URL('../widgets/TU962-Scriptable.js',import.meta.url),'utf8');
 async function runScript(saved,options={}) {
   const labels=[],files=new Map(saved?[['/docs/TU962-timetable.json',JSON.stringify(saved)]]:[]),imported=options.imported;
+  if(options.wallpaper)files.set('/docs/TU962-wallpaper.png','wallpaper');
   if(imported)files.set('/picked',JSON.stringify(imported));
-  class Box {addText(t){labels.push(t);return {}}addStack(){return new Box()}addSpacer(){}setPadding(){}layoutHorizontally(){}layoutVertically(){}topAlignContent(){}async presentMedium(){}}
+  let widget;class Box {constructor(){if(!widget)widget=this}addText(t){labels.push(t);return {}}addStack(){return new Box()}addSpacer(){}setPadding(){}layoutHorizontally(){}layoutVertically(){}topAlignContent(){}async presentMedium(){}}
   const font={systemFont:()=>({}),boldSystemFont:()=>({}),regularMonospacedSystemFont:()=>({})};
   class Alert {addAction(){}addCancelAction(){}async presentSheet(){return imported?0:1}async presentAlert(){throw Error('Unexpected alert')}}
   let finish;const done=new Promise(r=>finish=r);
-  vm.runInNewContext(script,{FileManager:{local:()=>({documentsDirectory:()=>'/docs',joinPath:(a,b)=>a+'/'+b,fileExists:p=>files.has(p),readString:p=>files.get(p),writeString:(p,s)=>files.set(p,s)})},config:{runsInApp:!!imported,runsInWidget:!imported,widgetFamily:options.family||'large'},ListWidget:Box,Color:class{},Size:class{},Font:Object.assign(function(){},font),Alert,DocumentPicker:{openFile:async()=>'/picked'},Script:{setWidget:()=>{},complete:finish},Intl,Date,console});
+  vm.runInNewContext(script,{FileManager:{local:()=>({documentsDirectory:()=>'/docs',joinPath:(a,b)=>a+'/'+b,fileExists:p=>files.has(p),readString:p=>files.get(p),writeString:(p,s)=>files.set(p,s),readImage:p=>files.get(p)})},config:{runsInApp:!!imported,runsInWidget:!imported,widgetFamily:options.family||'large'},ListWidget:Box,Color:class{},Size:class{},Font:Object.assign(function(){},font),Alert,DocumentPicker:{openFile:async()=>'/picked'},Script:{setWidget:()=>{},complete:finish},Intl,Date,console});
   await Promise.race([done,new Promise((_,reject)=>setTimeout(()=>reject(Error('Widget did not complete')),1000))]);
-  return {labels,files};
+  return {labels,files,widget};
 }
 test('Scriptable uses imported schedule and handles missing setup',async()=>{
   const missing=await runScript();assert.ok(missing.labels.some(t=>t.includes('import your exported timetable')));
   const imported=await runScript(null,{imported:state});assert.equal(JSON.parse(imported.files.get('/docs/TU962-timetable.json')).entries.length,224);
   for(const font of ['Modern','Rounded','Mono','Classic','Handwritten','8-Bit Arcade','Digital Clock'])await runScript({...state,appearance:{...defaults,font,next:true}});
 });
+test('iPhone transparent style uses a wallpaper crop or shows the missing-setup reminder',async()=>{
+  const transparent={...state,appearance:{...defaults,background:'Transparent'}};
+  const missing=await runScript(transparent);assert.ok(missing.labels.includes('Choose wallpaper crop in TU962'));
+  const ready=await runScript(transparent,{wallpaper:true});assert.equal(ready.widget.backgroundImage,'wallpaper');assert.ok(!ready.labels.includes('Choose wallpaper crop in TU962'));
+  assert.match(ready.labels[0],/\d{2}\/\d{2}\/\d{4}/);
+});
+
