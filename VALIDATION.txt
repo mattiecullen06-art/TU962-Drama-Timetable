@@ -1,0 +1,11 @@
+TU962 web app and custom-widget companions
+
+Passed locally: eight Node tests covering dated timetable data, recurrence, removals, import validation, web startup, KWGT daily exports, next classes, and the distributed Scriptable script using mocked Scriptable APIs.
+
+Browser layout/interaction check: unavailable. The in-app browser could not connect to the local preview server (connection timed out). Responsive CSS is included, but no iPhone/Android/laptop browser layout pass is claimed.
+
+Physical widget check: unavailable. Scriptable on iPhone and KWGT/LockStar on Samsung require device testing. The Android delivery is a manual KWGT recipe, not an importable preset.
+
+Hosting: prepared for GitHub Pages. A publishing branch is not a deployed site; repository Pages settings need enabling before a live URL can be verified.
+
+Data: fixed published snapshot, 224 exact-dated sessions. Personal edits are browser local and exported manually. No automatic browser-to-widget synchronization or university timetable refresh.
